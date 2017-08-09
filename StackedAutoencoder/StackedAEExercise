@@ -212,7 +212,7 @@ printf('fine-tuning....\n');
 
 
 save('stackedAEOptTheta.mat', 'stackedAEOptTheta');
-%load('final_theta.mat');
+
 printf('Fine-tuning complete\n');
 
 
