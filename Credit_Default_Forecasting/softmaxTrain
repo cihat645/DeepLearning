@@ -1,0 +1,28 @@
+function [softmaxModel] = softmaxTrain(inputSize, numClasses, lambda, inputData, labels, options)
+
+if ~exist('options', 'var')
+    options = struct;
+end
+
+if ~isfield(options, 'maxIter')
+    options.maxIter = 400;
+end
+
+theta = 0.005 * randn(numClasses * inputSize, 1);
+
+options.HessUpate = 'lbfgs';
+options.MaxIter = 400;	  % Maximum number of iterations of L-BFGS to run 
+options.Display = 'iter';
+options.GradObj = 'on';
+
+[softmaxOptTheta, cost] = fminlbfgs( @(p) softmaxCost(p, ...
+                                   numClasses, inputSize, lambda, ...
+                                   inputData, labels), ...                                   
+                              theta, options);
+
+
+softmaxModel.optTheta = reshape(softmaxOptTheta, numClasses, inputSize);
+softmaxModel.inputSize = inputSize;
+softmaxModel.numClasses = numClasses;
+                          
+end                          
