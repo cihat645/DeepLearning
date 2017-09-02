@@ -1,0 +1,81 @@
+function [ cost, grad ] = stackedAECost(theta, inputSize, hiddenSize, numClasses, netconfig, lambda, data, labels)
+                                                                           
+% We first extract the part which compute the softmax gradient
+softmaxTheta = reshape(theta(1:hiddenSize*numClasses), numClasses, hiddenSize);
+
+% Extract out the "stack"
+stack = params2stack(theta(hiddenSize*numClasses+1:end), netconfig);
+
+% You will need to compute the following gradients
+softmaxThetaGrad = zeros(size(softmaxTheta));
+stackgrad = cell(size(stack));
+for d = 1:numel(stack)
+    stackgrad{d}.w = zeros(size(stack{d}.w));
+    stackgrad{d}.b = zeros(size(stack{d}.b));
+end
+
+cost = 0; 
+
+M = size(data, 2); %number of examples
+groundTruth = full(sparse(labels, 1:M, 1)); %these are the input labels
+
+%autoencoders
+z1 = bsxfun(@plus, (stack{1}.w * data), stack{1}.b);
+a2 = sigmoid(z1);
+
+z2 = bsxfun(@plus, (stack{2}.w * a2), stack{2}.b);
+a3 = sigmoid(z2);  
+
+z3 = bsxfun(@plus, (stack{3}.w * a3), stack{3}.b);
+a4 = sigmoid(z3);
+
+%softmax classifier
+hyp = (softmaxTheta * a4); 
+hyp = bsxfun(@minus, hyp, max(hyp, [], 1)); %subtracting maximum value from hyp to prevent overflow
+hyp = exp(hyp); % hypothesis
+hyp = bsxfun(@rdivide, hyp, sum(hyp)); %dividing hyp by sum of elements to normalize values
+
+cost = groundTruth.* log(hyp); 
+reg = lambda / 2 * sum(softmaxTheta(:) .^2);
+cost = -1 / M * sum(cost(:)) + reg;
+
+%for 3 autoencoders
+softmaxThetaGrad = (-1 / M) * ((groundTruth - hyp) * a4') + (lambda * softmaxTheta); 
+delta4 = -(softmaxTheta' * (groundTruth - hyp)) .* a4 .* (1 - a4); 
+delta3 = (stack{3}.w' * delta4) .* a3 .* (1 - a3); 
+delta2 = (stack{2}.w' * delta3) .* a2 .* (1 - a2); 
+
+
+%for 2 autoencoders
+%softmaxThetaGrad = (-1 / M) * ((groundTruth - hyp) * a3') + (lambda * softmaxTheta); 
+%delta3 = -(softmaxTheta' * (groundTruth - hyp)) .* a3 .* (1 - a3); 
+%delta2 = (stack{2}.w' * delta3) .* a2 .* (1 - a2); 
+
+%for 1 autoencoder
+%softmaxThetaGrad = (-1 / M) * ((groundTruth - hyp) * a2') + (lambda * softmaxTheta); %for 1 autoencoder
+%delta2 = -(softmaxTheta' * (groundTruth - hyp)) .* a2 .* (1 - a2); %for 1 autoencoder
+
+
+%computing stackgrad:
+stackgrad{1}.w = (delta2 * data') / M; 
+stackgrad{1}.b = sum(delta2,2) / M;
+stackgrad{2}.w = (delta3 * a2') / M; 
+stackgrad{2}.b = sum(delta3, 2) / M; 
+
+stackgrad{3}.w = (delta4 * a3') / M;
+stackgrad{3}.b = sum(delta4,2) / M;
+
+
+%% Roll gradient vector
+grad = [softmaxThetaGrad(:) ; stack2params(stackgrad)];
+
+end
+
+
+function sigm = sigmoid(x)
+    sigm = 1 ./ (1 + exp(-x));
+end
+
+function sig_grad = sigmoid_gradient(x)
+  sig_grad = sigmoid(x) .* (1 - sigmoid(x));
+end
