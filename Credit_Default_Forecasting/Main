@@ -73,11 +73,11 @@ load('Autoencoder1Model6.mat');
 
 
 %==== Extracting learned features from first autoencoder ====
-training_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, training_data);
+training_features = ExtractFeatures(Autoencoder1Model6, hiddenSizeL1, inputSize, training_data);
 
-cv_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, cv_data);
+cv_features = ExtractFeatures(Autoencoder1Model6, hiddenSizeL1, inputSize, cv_data);
 
-test_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, test_data);
+test_features = ExtractFeatures(Autoencoder1Model6, hiddenSizeL1, inputSize, test_data);
 
 %training Autoencoder 2
 hiddenSizeL2 = 7;
@@ -92,11 +92,11 @@ save('Autoencoder2Model6.mat', 'Autoencoder2Model6');
 load('Autoencoder2Model6.mat');
 
 %==== Extracting learned features from 2nd autoencoder ====
-training_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, training_features);
+training_features = ExtractFeatures(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, training_features);
 
-cv_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, cv_features);
+cv_features = ExtractFeatures(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, cv_features);
 
-test_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, test_features);
+test_features = ExtractFeatures(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, test_features);
 
 %training Autoencoder 3
 hiddenSizeL3 = 7;
@@ -111,11 +111,11 @@ save('Autoencoder3Model6.mat', 'Autoencoder3Model6');
 load('Autoencoder3Model6.mat');
 
 %==== Extracting learned features from 2nd autoencoder ====
-training_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, training_features);
+training_features = ExtractFeatures(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, training_features);
 
-cv_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, cv_features);
+cv_features = ExtractFeatures(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, cv_features);
 
-test_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, test_features);
+test_features = ExtractFeatures(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, test_features);
 
 
 
@@ -346,6 +346,17 @@ fprintf('After Finetuning CV SET Accuracy: %0.3f%%\n', acc * 100);
 %axis([0 num_of_x_units 0 num_of_y_units])
 %====END LEARNING CURVES============
 
+%==== VALIDATION CURVE FOR SOFTMAX REGRESSION============
+
+%[lambda_vector, error_train, error_val, best_lambda] = ...
+%    validationCurveLogisReg(training_features, training_labels, cv_features, cv_labels);
+%
+%close all;
+%title(sprintf('Validation Curve, best lambda = %d', best_lambda));
+%plot(lambda_vector, error_train, lambda_vector, error_val);
+%legend('Train', 'Cross Validation');
+%xlabel('lambda');
+%ylabel('Error');
 
 
 
