@@ -1,0 +1,14 @@
+function [pred temp] = softmaxPredict(softmaxModel, data)
+ 
+% Unroll the parameters from theta
+theta = softmaxModel.optTheta;  % this provides a numClasses x inputSize matrix
+pred = zeros(1, size(data, 2));
+
+
+M = exp(theta*data);
+M = bsxfun(@rdivide, M, sum(M));
+
+[temp pred] = max(M);
+
+end
+
