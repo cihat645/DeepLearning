@@ -1,0 +1,20 @@
+function [activation] = ExtractFeatures(theta, hiddenSize, visibleSize, data)
+
+W1 = reshape(theta(1:hiddenSize*visibleSize), hiddenSize, visibleSize);
+b1 = theta(2*hiddenSize*visibleSize+1:2*hiddenSize*visibleSize+hiddenSize);
+
+z1 = (W1 * data) + repmat(b1, 1, columns(data));
+
+activation = sigmoid(z1);
+
+end
+
+ 
+
+function sigm = sigmoid(x)
+    sigm = 1 ./ (1 + exp(-x));
+end
+
+
+% (W1 * data) has the same dimensions as repmat(b1, 1, columns(data)) 
+% this adds bias units to (W1 * data) 
