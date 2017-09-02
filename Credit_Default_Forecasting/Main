@@ -1,0 +1,357 @@
+
+%Step 1: Load data 
+data = csvread('UCI_Credit_Card.csv');
+
+data = data(2:end, 2:end); %delete the first row of data (feature names) and first column (ID)
+target_values = data(:, end); %extract target values from data
+data = data(:, 1:(end - 1)); %delete target values from input data structure
+target_values(target_values == 0) = 2; % Remap 0 to 10 since our labels need to start from 1
+
+%Step 2: Normalize Features / Preprocess the data / Divide data into training, validation and test sets.
+
+data = zscore(data); %feature normalize, find standard score
+
+%min-max normalization:
+%for i = 1:columns(data),
+%  data(:,i) = (data(:,i) - min(data(:,i)) / (max(data(:,i)) - min(data(:,i))));
+%end
+
+%allocating 60 percent to training data, 20 percent to cross-validation and 20 percent to test 
+num_of_training_data = ceil(rows(data) * .6);
+num_of_cv_data = ceil(rows(data) * .2);
+num_of_test_data = rows(data) - num_of_training_data - num_of_cv_data;
+
+training_data = data(1:num_of_training_data, :)';
+training_labels = target_values(1:num_of_training_data, :);
+
+cv_data = data(num_of_training_data + 1 : (num_of_training_data + 1) + num_of_cv_data, :)';
+cv_labels = target_values(num_of_training_data + 1 : (num_of_training_data + 1) + num_of_cv_data, :);
+
+test_data = data((num_of_training_data + 1) + (num_of_cv_data + 1) : end, :)';
+test_labels = target_values((num_of_training_data + 1) + (num_of_cv_data + 1) : end, :);
+
+%NOTE: if the data are transposed above, then the data is sorted by columns (each column = 1 example)
+
+%Dimensions of data:================
+%training_data: 18,000 x 23
+%training_labels: 18,000 x 1
+
+%cv_data: 6001 x 23
+%cv_labels: 6001 x 1
+
+%test_data: 5999 x 23
+%test_labels: 5999 x 1
+%===========================
+
+%Note: I didn't randomize the ordering of the data because the order of 
+%this data has no effect on the target values
+
+%==================================================================================================================
+%Step 3: PRE-TRAINING
+%==================================================================================================================
+
+inputSize = 23;
+hiddenSizeL1 = 7;
+sparsityParam = 0.1;   % desired average activation of the hidden units.
+lambda = 3e-3;         % weight decay parameter       
+beta = 3;   
+
+InitialThetaAE1 = initializeParameters(hiddenSizeL1, inputSize); %initalizing parameters for 1st autoencoder
+
+options.HessUpate = 'lbfgs';
+options.MaxIter = 300;	  
+options.Display = 'iter';
+options.GradObj = 'on';
+
+training Autoencoder 1
+[Autoencoder1Model6, cost] = fminlbfgs( @(p) sparseAutoencoderCost(p, inputSize, hiddenSizeL1, ...
+                                   lambda, sparsityParam, beta, training_data), ...%transpoing training_data because cost function is designed to take data in this format.
+                                  InitialThetaAE1, options);
+
+save('Autoencoder1Model6.mat', 'Autoencoder1Model6');
+load('Autoencoder1Model6.mat');
+
+
+%==== Extracting learned features from first autoencoder ====
+training_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, training_data);
+
+cv_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, cv_data);
+
+test_features = feedForwardAutoencoder(Autoencoder1Model6, hiddenSizeL1, inputSize, test_data);
+
+%training Autoencoder 2
+hiddenSizeL2 = 7;
+
+InitialThetaAE2 = initializeParameters(hiddenSizeL2, hiddenSizeL1); %initalizing parameters for 1st autoencoder
+
+
+[Autoencoder2Model6, cost] = fminlbfgs( @(p) sparseAutoencoderCost(p, hiddenSizeL1, hiddenSizeL2, ...
+                                   lambda, sparsityParam, beta, training_features), ...%transpoing training_data because cost function is designed to take data in this format.
+                                  InitialThetaAE2, options);
+save('Autoencoder2Model6.mat', 'Autoencoder2Model6');
+load('Autoencoder2Model6.mat');
+
+%==== Extracting learned features from 2nd autoencoder ====
+training_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, training_features);
+
+cv_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, cv_features);
+
+test_features = feedForwardAutoencoder(Autoencoder2Model6, hiddenSizeL2, hiddenSizeL1, test_features);
+
+%training Autoencoder 3
+hiddenSizeL3 = 7;
+
+%InitialThetaAE3 = initializeParameters(hiddenSizeL3, hiddenSizeL2); %initalizing parameters for 1st autoencoder
+
+
+[Autoencoder3Model6, cost] = fminlbfgs( @(p) sparseAutoencoderCost(p, hiddenSizeL2, hiddenSizeL3, ...
+                                   lambda, sparsityParam, beta, training_features), ...%transpoing training_data because cost function is designed to take data in this format.
+                                  InitialThetaAE3, options);
+save('Autoencoder3Model6.mat', 'Autoencoder3Model6');
+load('Autoencoder3Model6.mat');
+
+%==== Extracting learned features from 2nd autoencoder ====
+training_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, training_features);
+
+cv_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, cv_features);
+
+test_features = feedForwardAutoencoder(Autoencoder3Model6, hiddenSizeL3, hiddenSizeL2, test_features);
+
+
+
+
+%========================================================================
+%               SOFTMAX CLASSIFIER
+%========================================================================
+numClasses = 2;
+theta = 0.005 * randn(numClasses * training_features, 1);
+lambda = 1e-4;
+
+
+printf('training softmax....\n\n');
+softmaxModel = softmaxTrain(hiddenSizeL1, numClasses, lambda, ...
+                            training_features, training_labels);
+                            
+SoftMaxTheta = softmaxModel.optTheta(:);              
+
+
+           
+                            
+%==== MAKING PREDICTIONS (FOR SOFTMAX MODEL ONLY) =========================
+
+%prediction = softmaxPredict(softmaxModel, test_features);
+%printf('test set prediction:');
+%
+%fprintf('\n Set Accuracy: %f\n', mean(double(prediction(:) == test_labels(:))) * 100);
+%
+%prediction = softmaxPredict(softmaxModel, training_features);
+%printf('training set prediction:');
+%fprintf('\n Set Accuracy: %f\n', mean(double(prediction(:) == training_labels(:))) * 100);
+%
+%prediction = softmaxPredict(softmaxModel, cv_features);
+%printf('cross-validation set prediction:');
+%fprintf('\n Set Accuracy: %f\n', mean(double(prediction(:) == cv_labels(:))) * 100);
+%
+
+%==== END MAKING PREDICTIONS =========================
+                            
+
+%========================================================================
+%           FINE-TUNING THE SAE MODEL
+%========================================================================
+
+
+num_of_autoencoders = 1;
+
+stack = cell(num_of_autoencoders, 1);
+
+stack{1}.w = reshape(Autoencoder1Model6(1:hiddenSizeL1*inputSize), ...
+                     hiddenSizeL1, inputSize);
+stack{1}.b = Autoencoder1Model6(2*hiddenSizeL1*inputSize+1:2*hiddenSizeL1*inputSize+hiddenSizeL1);
+
+stack{2}.w = reshape(Autoencoder2Model6(1:hiddenSizeL2*hiddenSizeL1), ...
+                     hiddenSizeL2, hiddenSizeL1);
+stack{2}.b = Autoencoder2Model6(2*hiddenSizeL2*hiddenSizeL1+1:2*hiddenSizeL2*hiddenSizeL1+hiddenSizeL2);
+
+stack{3}.w = reshape(Autoencoder3Model6(1:hiddenSizeL3*hiddenSizeL2), ...
+                     hiddenSizeL3, hiddenSizeL2);
+stack{3}.b = Autoencoder3Model6(2*hiddenSizeL3*hiddenSizeL2 + 1 : 2* hiddenSizeL2 * hiddenSizeL2 + hiddenSizeL3);
+
+%creating parameters for entire model
+[stackparams, netconfig] = stack2params(stack);
+
+stackedAETheta = [SoftMaxTheta ; stackparams];
+
+%training the deep network:
+
+[DeepNetworkParams, cost] = fminlbfgs( @(p) stackedAECost(p, inputSize, hiddenSizeL1, ...
+                                          numClasses, netconfig, lambda, training_data, ...
+                                          training_labels, network), stackedAETheta, options);
+
+save('AutoencoderModel6.mat', 'DeepNetworkParams');
+load('AutoencoderModel6.mat');
+
+
+%==== END FINE-TUNING THE MODEL =========================
+
+
+
+%========================================================================
+%           MAKING PREDICTIONS (AUTOENCODER MODEL)
+%========================================================================
+
+%BEFORE FINE TUNING
+prediction = stackedAEPredict(stackedAETheta, inputSize, hiddenSizeL1, numClasses, ...
+                        netconfig, test_data);
+
+acc = mean(test_labels(:) == prediction(:));
+fprintf('Before Finetuning Test Accuracy: %0.3f%%\n', acc * 100);                       
+
+
+prediction = stackedAEPredict(stackedAETheta, inputSize, hiddenSizeL1, numClasses, ...
+                        netconfig, cv_data);
+
+acc = mean(cv_labels(:) == prediction(:));
+fprintf('Before Finetuning CV SET Accuracy: %0.3f%%\n', acc * 100); 
+
+%AFTER FINE TUNING                
+prediction = stackedAEPredict(DeepNetworkParams, inputSize, hiddenSizeL1, numClasses, ...
+                        netconfig, test_data);
+                    
+acc = mean(test_labels(:) == prediction(:));
+fprintf('After Finetuning Test Accuracy: %0.3f%%\n', acc * 100);      
+
+
+prediction = stackedAEPredict(DeepNetworkParams, inputSize, hiddenSizeL1, numClasses, ...
+                        netconfig, cv_data);
+                    
+acc = mean(cv_labels(:) == prediction(:));
+fprintf('After Finetuning CV SET Accuracy: %0.3f%%\n', acc * 100);                      
+
+%========================================================================
+
+
+
+
+
+
+
+
+%====LEARNING CURVES FOR SOFTMAX REGRESSION=========================
+%printf('plotting learning curves...\n\n');
+%
+%%try various values for lambda to see how the learning curve changes
+%lambda = 1;
+%
+%printf('softmax modedl num classes :\n');
+%softmaxModel.numClasses
+%
+%[training_error, cv_error] = learningCurveSoftmax(training_data,...
+%                   training_labels, cv_data, cv_labels, ...
+%                  lambda, softmaxModel);
+%m = 10;
+%plot(1:m, training_error, 1:m, cv_error);
+%title('Learning curve Softmax Regression, lambda = %f', lambda)
+%legend('Train', 'Cross Validation')
+%xlabel('Number of training examples')
+%ylabel('Error')
+%axis([0 13 0 20])
+%====END LEARNING CURVES============
+
+%==== VALIDATION CURVE FOR SOFTMAX REGRESSION============
+%
+%[lambda_vector, error_train, error_val] = ...
+%    validationCurveSoftmax(training_data, training_labels, cv_data, cv_labels, softmaxModel);
+%
+%
+%close all;
+%title('Validation Curve')
+%plot(lambda_vector, error_train, lambda_vector, error_val);
+%legend('Train', 'Cross Validation');
+%xlabel('lambda');
+%ylabel('Error');
+%
+
+%====END VALIDATION CURVE============
+
+
+
+%====================================================================================================
+%           TRY OUT LOGISTIC REGRESSION MODEL 
+%====================================================================================================
+
+%NOTE: TO USE THIS MODEL, BE SURE TO COMMENT OUT THE CODE THAT CHANGES ALL THE ORIGINAL 
+% TARGET VALUES THAT = 0 TO EQUAL 2.
+%
+%training_features = training_features'; %dimen: 18,0001 x 15
+%cv_features = cv_features';
+%test_features = test_features';
+%training_data = training_data';
+%test_data = test_data';
+%cv_data = cv_data';
+%
+%
+%% Initialize fitting parameters
+%initial_theta = zeros(columns(training_features), 1);
+%
+%% Set regularization parameter lambda to 1 (you should vary this)
+%lambda = 0;
+%
+%% Set Options
+%options = optimset('GradObj', 'on', 'MaxIter', 400);
+%
+%% Optimize
+%[theta, J, exit_flag] = ...
+%	fminunc(@(t)(lrCostFunction(t, training_features, training_labels, lambda)), initial_theta, options);
+%
+%% Compute accuracy on our training set
+%p = predictLR(theta, training_features);
+%
+%fprintf('Train Accuracy: %f\n', mean(double(p(:) == training_labels(:))) * 100);
+%
+%p = predictLR(theta, test_features);
+%
+%fprintf('Test Accuracy: %f\n', mean(double(p == test_labels)) * 100);
+%
+%p = predictLR(theta, cv_features);
+%
+%fprintf('CV Accuracy: %f\n', mean(double(p == cv_labels)) * 100);
+
+
+
+%====================================================================================================
+%   VALIDATION AND LEARNING CURVES FOR LOGISTIC REGRESSION MODEL
+
+
+%%try various values for lambda to see how the learning curve changes
+%lambda = 1.0;
+
+
+%[training_error, cv_error] = learningCurveLogistReg(training_data,...
+%                   training_labels, cv_data, cv_labels, ...
+%                  lambda);
+%                 
+%m = rows(training_error)
+%
+%plot(1:m, training_error, 1:m, cv_error);
+%%plot(training_error, cv_error)
+%title (sprintf('Learning Curve (lambda = %f)', lambda));
+%legend('Train', 'Cross Validation')
+%xlabel('Number of training examples')
+%ylabel('Error')
+%
+%num_of_x_units = 1000; %how many examples to plot
+%num_of_y_units = 10; %magnitude of cost you would like to be able to plot
+%
+%axis([0 num_of_x_units 0 num_of_y_units])
+%====END LEARNING CURVES============
+
+
+
+
+
+
+
+
+
+%====================================================================================================%
