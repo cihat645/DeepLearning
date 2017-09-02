@@ -1,0 +1,11 @@
+function p = predictLR(theta, X)
+
+m = size(X, 1); % Number of training examples, this syntax returns the number of rows in a matrix
+p = zeros(m, 1);
+
+hyp = SigmoidAct(X * theta); %(returns a mx1 matrix_type
+
+predict_1 = find(hyp >= .5); %store the indices of every element that's greater than or equal to 0.5
+p(predict_1) = 1; %classify every index that had a probability greater than 0.5 as 1
+
+end
