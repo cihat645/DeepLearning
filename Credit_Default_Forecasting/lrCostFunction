@@ -1,0 +1,24 @@
+function [J, grad] = lrCostFunction(theta, X, y, lambda)
+
+% Initialize some useful values
+m = length(y); % number of training examples
+
+% You need to return the following variables correctly 
+J = 0;
+grad = zeros(size(theta));
+
+hyp = SigmoidAct(X * theta); 
+
+cost = (-y' * log(hyp) - (1 - y)' * log(1 - hyp));
+regularization = (lambda / (2 * m)) * sum(theta(2:end).^2);
+
+J = (1/m) * cost + regularization;
+
+grad = (1/m) * X' * (hyp - y);
+temp = theta;
+temp(1) = 0; 
+grad = grad + ((lambda / m)*temp);
+
+grad = grad(:);
+
+end
