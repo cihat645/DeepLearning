@@ -19,6 +19,7 @@ from keras.regularizers import l2
 from keras.layers.normalization import BatchNormalization
 from keras.layers import Activation, Dropout, InputLayer
 from keras.models import load_model
+from keras import backend as K
 
 FOLDER_PATH = r'FILE PATH'                             
 data = pd.read_csv(r'DATA PATH')
@@ -201,6 +202,7 @@ def build_nn(model_info):
     :param model_info:
     :return:
     """
+    K.clear_session()                                                           # force Keras TF backend to start a new session
     try:
         if model_info["Regularization"] == "l2":                                # if we're using L2 regularization
             lambda_ = model_info['Reg param']                                   # get lambda parameter
