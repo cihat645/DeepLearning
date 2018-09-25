@@ -20,8 +20,8 @@ from keras.layers.normalization import BatchNormalization
 from keras.layers import Activation, Dropout, InputLayer
 from keras.models import load_model
 
-FOLDER_PATH = r'C:\Users\x2016onq\PycharmProjects\CreditDefault\\'                              # TODO: Change this to YOUR PATH HERE
-data = pd.read_csv(r'C:\Users\x2016onq\PycharmProjects\CreditDefault\UCI_Credit_Card.csv')
+FOLDER_PATH = r'FILE PATH'                             
+data = pd.read_csv(r'DATA PATH')
 FEATURES = list(data)[:-1]
 data = np.array(data)
 M = data.shape[0]
@@ -87,8 +87,6 @@ def preprocess_data(data, technique, labels = True):
         return transformed, data_labels
     else:
         return transformed
-    # return transformed, data_labels if labels else transformed                                                        # this was giving me trouble, but solution above works
-
 
 # ------------- DATA SETUP AND VISUALIZATION -----------------------------------
 def plot_3d(data, colors, title):
@@ -177,7 +175,7 @@ def plot_data_distributions(train_set, train_labels, val_set, val_labels, test_s
 # ---------------------------------------------------- Normalizing & Visualizing Data ----------------------------------------------------
 
 # one_hot(data, FOLDER_PATH, 'OG_one_hot')                                                                                                    # one-hot enocde data and save. data is loaded above ^
-# og_one_hot = np.array(pd.read_csv(r'C:\Users\x2016onq\PycharmProjects\CreditDefault\OG_one_hot.csv'))
+# og_one_hot = np.array(pd.read_csv(r'PATH HERE'))
 # print("og one hot shape = ", og_one_hot.shape)
 
 # mean_normalized_data = preprocess_data(data, 'MeanNormalized', save= True, save_name= "\CC_Data_ScaledCC_Data_MeanNormalized")              # testing preprocessing functions
@@ -203,9 +201,6 @@ def build_nn(model_info):
     :param model_info:
     :return:
     """
-
-    #TODO: TO FIX THIS, WE NEED TO ADD THE input_shape parameter to each layer we add to our Sequential() model
-
     try:
         if model_info["Regularization"] == "l2":                                # if we're using L2 regularization
             lambda_ = model_info['Reg param']                                   # get lambda parameter
